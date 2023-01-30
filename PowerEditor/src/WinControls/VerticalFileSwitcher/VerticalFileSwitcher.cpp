@@ -73,7 +73,7 @@ intptr_t CALLBACK VerticalFileSwitcher::run_dlgProc(UINT message, WPARAM wParam,
 		{
 			VerticalFileSwitcher::initPopupMenus();
 
-			_fileListView.init(_hInst, _hSelf, _hImaLst);
+			_fileListView.init(_hInst, this, _hImaLst);
 			_fileListView.initList();
 			_fileListView.display();
 
@@ -355,6 +355,20 @@ void VerticalFileSwitcher::activateDoc(TaskLstFnStatus *tlfs) const
 
 	::SendMessage(_hParent, NPPM_ACTIVATEDOC, view2set, index2Switch);
 }
+
+void VerticalFileSwitcher::closeDoc(TaskLstFnStatus* tlfs) const
+{
+	int view = tlfs->_iView;
+	BufferID bufferID = static_cast<BufferID>(tlfs->_bufID);
+
+	int docPosInfo = static_cast<int32_t>(::SendMessage(_hParent, NPPM_GETPOSFROMBUFFERID, reinterpret_cast<WPARAM>(bufferID), view));
+	int view2set = docPosInfo >> 30;
+	int index2Switch = (docPosInfo << 2) >> 2;
+
+	::SendMessage(_hParent, NPPM_ACTIVATEDOC, view2set, index2Switch);
+	::SendMessage(_hParent, WM_COMMAND, IDM_FILE_CLOSE, 0);
+}
+
 
 int VerticalFileSwitcher::setHeaderOrder(int columnIndex)
 {

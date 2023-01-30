@@ -31,6 +31,7 @@ typedef Buffer * BufferID;	//each buffer has unique ID by which it can be retrie
 #define FS_CLMNNAME					"ColumnName"
 #define FS_CLMNEXT					"ColumnExt"
 #define FS_CLMNPATH					"ColumnPath"
+class VerticalFileSwitcher;
 
 struct SwitcherFileInfo {
 	BufferID _bufID = 0;
@@ -46,7 +47,7 @@ public:
 	VerticalFileSwitcherListView() = default;
 	virtual ~VerticalFileSwitcherListView() = default;
 
-	virtual void init(HINSTANCE hInst, HWND parent, HIMAGELIST hImaLst);
+	virtual void init(HINSTANCE hInst, VerticalFileSwitcher* pParent, HIMAGELIST hImaLst);
 	virtual void destroy();
 	void initList();
 	BufferID getBufferInfoFromIndex(int index, int & view) const;
@@ -87,7 +88,9 @@ public:
 
 protected:
 	HIMAGELIST _hImaLst = nullptr;
-
+	VerticalFileSwitcher* _pParent = nullptr;
+	WNDPROC _hDefaultListProc = nullptr;
+	
 	int _currentIndex = 0;
 
 	int find(BufferID bufferID, int iView) const;
@@ -96,5 +99,13 @@ protected:
 	void removeAll();
 	void selectCurrentItem() const {
 		ListView_SetItemState(_hSelf, _currentIndex, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+	};
+
+	/* Subclassing list control */
+	LRESULT runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+	static LRESULT CALLBACK wndDefaultListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+	{
+		VerticalFileSwitcherListView* pThis = reinterpret_cast<VerticalFileSwitcherListView * >(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
+		return pThis->runListProc(hwnd, Message, wParam, lParam);
 	};
 };

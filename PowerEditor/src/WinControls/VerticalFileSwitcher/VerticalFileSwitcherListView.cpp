@@ -17,13 +17,15 @@
 #include <shlwapi.h>
 #include <stdexcept>
 #include "VerticalFileSwitcherListView.h"
+#include "VerticalFileSwitcher.h"
 #include "Buffer.h"
 #include "localization.h"
 
-void VerticalFileSwitcherListView::init(HINSTANCE hInst, HWND parent, HIMAGELIST hImaLst)
+void VerticalFileSwitcherListView::init(HINSTANCE hInst, VerticalFileSwitcher* pParent, HIMAGELIST hImaLst)
 {
-	Window::init(hInst, parent);
+	Window::init(hInst, pParent->getHSelf());
 	_hImaLst = hImaLst;
+	_pParent = pParent;
 	INITCOMMONCONTROLSEX icex{};
 
 	// Ensure that the common control DLL is loaded. 
@@ -51,6 +53,9 @@ void VerticalFileSwitcherListView::init(HINSTANCE hInst, HWND parent, HIMAGELIST
 		throw std::runtime_error("VerticalFileSwitcherListView::init : CreateWindowEx() function return null");
 	}
 
+	_hDefaultListProc = (WNDPROC)::SetWindowLongPtr(_hSelf, GWLP_WNDPROC, (LONG_PTR)wndDefaultListProc);
+	::SetWindowLongPtr(_hSelf, GWLP_USERDATA, (LONG_PTR)this);
+
 	ListView_SetExtendedListViewStyle(_hSelf, LVS_EX_FULLROWSELECT | LVS_EX_BORDERSELECT | LVS_EX_INFOTIP | LVS_EX_DOUBLEBUFFER);
 	ListView_SetItemCountEx(_hSelf, 50, LVSICF_NOSCROLL);
 	ListView_SetImageList(_hSelf, _hImaLst, LVSIL_SMALL);
@@ -71,6 +76,36 @@ void VerticalFileSwitcherListView::destroy()
 	::DestroyWindow(_hSelf);
 	_hSelf = NULL;
 } 
+
+LRESULT VerticalFileSwitcherListView::runListProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	switch (Message)
+	{
+	case WM_MBUTTONDOWN:
+	{
+		LVHITTESTINFO	hittest = { 0 };
+
+		// get position
+		::GetCursorPos(&hittest.pt);
+		ScreenToClient(hwnd, &hittest.pt);
+		ListView_SubItemHitTest(hwnd, &hittest);
+
+		LVITEM item{};
+		item.mask = LVIF_PARAM;
+		item.iItem = hittest.iItem;
+		ListView_GetItem(_hSelf, &item);
+		TaskLstFnStatus* tlfs = (TaskLstFnStatus*)item.lParam;
+
+		_pParent->closeDoc(tlfs);
+		return TRUE;
+	}
+	
+	default:
+		break;
+	}
+
+	return ::CallWindowProc(_hDefaultListProc, hwnd, Message, wParam, lParam);
+}
 
 void VerticalFileSwitcherListView::initList()
 {
